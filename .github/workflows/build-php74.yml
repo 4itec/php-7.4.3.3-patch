@@ -1,0 +1,94 @@
+name: Build patched PHP 7.4
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-php74.yml'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'sources.lock.json'
+permissions:
+  contents: read
+concurrency:
+  group: php74-build-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Use LF for source checkouts
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout build instructions
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Checkout official PHP 7.4.33
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: php/php-src
+          ref: dca8d5565b947270a29f232bc54efd9df3b92b94
+          path: work/php-src
+          persist-credentials: false
+      - name: Checkout official Windows builder
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: php/php-windows-builder
+          ref: 5f63433eb2bda2ca8d0d970fe487be84f7ab195c
+          path: work/builder
+          persist-credentials: false
+      - name: Validate scripts before execution
+        run: |
+          $failed = $false
+          Get-ChildItem scripts -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            $null = [Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count) {
+              $failed = $true
+              $parseErrors | ForEach-Object { Write-Host $_ }
+            }
+          }
+          if ($failed) { throw 'PowerShell syntax validation failed.' }
+      - name: Apply and verify the official patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/Prepare.ps1
+      - name: Compile PHP x64 Thread Safe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./scripts/Build.ps1
+      - name: Test runtime and security backport behavior
+        run: ./scripts/Test.ps1
+      - name: Attest tested runtime ZIP
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: dist/php-7.4.33-pl1-Win32-vc15-x64.zip
+      - name: Upload tested package and evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: php-7.4.33-pl1-x64-ts
+          path: |
+            dist/*
+            reports/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: php74-failure-diagnostics
+          path: reports/*
+          if-no-files-found: warn
+          retention-days: 14
+

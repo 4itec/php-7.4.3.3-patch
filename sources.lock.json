@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "base_version": "7.4.33",
+  "build_version": "7.4.33-pl1",
+  "php_repository": "php/php-src",
+  "php_base_tag": "php-7.4.33",
+  "php_base_sha": "dca8d5565b947270a29f232bc54efd9df3b92b94",
+  "php_base_tag_object": "005f0cbace2d58e74867606f6b9a335491566bb0",
+  "patch_sha": "712e60f9edfd03f0960fc4fc3c2c375f42b90aa2",
+  "patch_parent_sha": "004cb827501d1ddaf98daacb185a53e0816f78a7",
+  "builder_repository": "php/php-windows-builder",
+  "builder_sha": "5f63433eb2bda2ca8d0d970fe487be84f7ab195c",
+  "sdk_tag": "php-sdk-2.8.4",
+  "architecture": "x64",
+  "thread_safety": "ts",
+  "compiler": "Visual C++ 2017",
+  "cves": [
+    "CVE-2026-109618",
+    "CVE-2026-109619"
+  ],
+  "patch_files": [
+    "Zend/zend_API.h",
+    "Zend/zend_alloc.c",
+    "Zend/zend_alloc.h",
+    "Zend/zend_execute_API.c",
+    "Zend/zend_hash.c",
+    "Zend/zend_hash.h",
+    "Zend/zend_llist.c",
+    "Zend/zend_multiply.h",
+    "Zend/zend_strtod.c",
+    "Zend/zend_types.h",
+    "Zend/zend_vm_def.h",
+    "Zend/zend_vm_execute.h",
+    "ext/session/session.c",
+    "main/SAPI.c",
+    "main/main.c",
+    "main/php_variables.c",
+    "main/rfc1867.c"
+  ],
+  "required_extensions": [
+    "curl",
+    "fileinfo",
+    "gd",
+    "intl",
+    "mbstring",
+    "mysqli",
+    "openssl",
+    "PDO",
+    "pdo_mysql",
+    "pdo_sqlite",
+    "session",
+    "zip",
+    "Zend OPcache"
+  ]
+}
+
