@@ -57,8 +57,20 @@ function Assert-CleanExit {
 }
 Start-Transcript -Path (Join-Path $audit 'tests.log') -Force | Out-Null
 try {
+    $context = Get-Content (Join-Path $audit 'build-context.json') -Raw | ConvertFrom-Json
+    $lockHash = (Get-FileHash (Join-Path $root 'sources.lock.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+    $runtimeHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+    $sourceHash = (Get-FileHash (Join-Path $dist "php-$($lock.build_version)-source.zip") -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($context.repository -cne $env:GITHUB_REPOSITORY -or $context.lock_sha256 -cne $lockHash -or
+        $context.runtime_sha256 -cne $runtimeHash -or $context.source_zip_sha256 -cne $sourceHash) {
+        throw 'Compiled input identity or hash mismatch.'
+    }
+    # The official smoke command prints phpinfo(). Never pass runner credentials
+    # to its PHP processes or capture them in a transcript.
+    Get-ChildItem Env: | Where-Object Name -Match '(?i)(TOKEN|PASSWORD|SECRET|CREDENTIAL|PRIVATE_KEY)' |
+        ForEach-Object { Remove-Item ('Env:' + $_.Name) }
     Import-Module (Join-Path $root 'work/builder/php/BuildPhp') -Force
-    Invoke-PhpSmokeTests -ArtifactsDirectory (Join-Path $root 'work/php-src/artifacts') -Arch x64 -Ts ts
+    Invoke-PhpSmokeTests -ArtifactsDirectory $dist -Arch x64 -Ts ts
     Expand-Archive -Path $zip -DestinationPath $runtime -Force
     foreach ($file in @('php.exe','php7ts.dll','php7apache2_4.dll','license.txt')) {
         if (-not (Test-Path (Join-Path $runtime $file))) { throw "Missing runtime file: $file" }
@@ -91,9 +103,10 @@ try {
         }
     WriteUtf8 $ini (($settings -join [Environment]::NewLine) + [Environment]::NewLine)
     $common = @('-c',$ini)
-    $info = Invoke-PhpProcess ($common + @('-i')) 'php-info'
+    $info = Invoke-PhpProcess ($common + @('-r','phpinfo(INFO_GENERAL | INFO_CONFIGURATION | INFO_MODULES);')) 'php-info'
     Assert-CleanExit $info 'php -i'
-    if ($info.stdout -notmatch 'Compiler => MSVC15 \(Visual C\+\+ 2017\)') {
+    $compilerMatch = [regex]::Match($info.stdout, '(?m)^Compiler => ([^\r\n]+)')
+    if (-not $compilerMatch.Success -or $compilerMatch.Groups[1].Value.Trim() -cne $lock.compiler) {
         throw 'Unexpected PHP compiler identity.'
     }
     $functional = Invoke-PhpProcess ($common + @((Join-Path $root 'tests/functional.php'),$state)) 'functional'
@@ -133,11 +146,11 @@ try {
         }
         $upload = Join-Path $state 'upload.txt'
         WriteUtf8 $upload ('ordinary upload ' * 128)
-        $multipart = Invoke-RestMethod $url -Method Post -WebSession $session -NoProxy -TimeoutSec 10 -Form @{
-            field='multipart-form'
+        $multipart = Invoke-RestMethod $url -Method Post -WebSession $session -NoProxy -TimeoutSec 10 -Form ([ordered]@{
             PHP_SESSION_UPLOAD_PROGRESS='probe'
+            field='multipart-form'
             upload=(Get-Item $upload)
-        }
+        })
         if (-not $multipart.uploaded -or $multipart.field -ne 'multipart-form' -or $multipart.previous -ne 'persisted') {
             throw 'Multipart form or HTTP session persistence failed.'
         }
@@ -173,9 +186,12 @@ try {
         source_verification=(Get-Content (Join-Path $audit 'prepared-source.json') -Raw | ConvertFrom-Json)
         runtime_sha256=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
         source_zip_sha256=(Get-FileHash (Join-Path $dist "php-$($lock.build_version)-source.zip") -Algorithm SHA256).Hash.ToLowerInvariant()
-        build_repository=$env:GITHUB_REPOSITORY;build_commit=$env:GITHUB_SHA
-        run_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-        runner_image=$env:ImageOS;runner_image_version=$env:ImageVersion
+        build_repository=$context.repository;build_commit=$context.commit
+        run_url=$context.run_url
+        runner_image=$context.runner_image;runner_image_version=$context.runner_image_version
+        validation_commit=$env:GITHUB_SHA
+        validation_run_url="https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+        compiler=$compilerMatch.Groups[1].Value.Trim()
         functional=$functionalData;binary_inventory=$inventory
         validation_limits='Isolated CLI and built-in HTTP tests; Apache module presence only. Actual Wampserver deployment and full application compatibility are not tested here. Not a complete vulnerability audit.'
     }

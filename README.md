@@ -1,6 +1,6 @@
 # PHP 7.4.33 con el parche PHP2Shell para Windows
 
-**Estado: compilación y pruebas en curso. Aún no hay binarios validados disponibles.**
+**Estado: primera compilación completada; corregida la comprobación del compilador para repetir la validación. Aún no hay un paquete validado disponible.**
 
 [Ejecución de GitHub Actions](https://github.com/4itec/php-7.4.3.3-patch/actions/runs/39813282800).
 
@@ -50,7 +50,13 @@ automática de conflictos y compara cada archivo parcheado con el blob oficial.
 Guarda el diff de seguridad, el cambio separado de identidad y el árbol de
 fuentes exacto. Luego usa el constructor oficial para generar el ZIP TS x64.
 
+La compilación y la validación se ejecutan en trabajos separados. El artefacto
+intermedio `php74-build-inputs` conserva los binarios como entrada para las pruebas;
+no acredita que hayan pasado. El paquete validado se llama `php-7.4.33-pl1-x64-ts`.
+Los hashes se comprueban al pasar del trabajo de compilación al de validación.
+
 Las pruebas incluyen:
+
 - Identidad, arquitectura, Thread Safety, módulo Apache y extensiones requeridas.
 - Carga de extensiones mediante las pruebas del constructor oficial.
 - JSON/Unicode, OpenSSL, GD, ICU, ZIP, SQLite y sesiones.

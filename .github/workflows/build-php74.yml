@@ -19,8 +19,6 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
-      id-token: write
-      attestations: write
     defaults:
       run:
         shell: pwsh
@@ -68,6 +66,55 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: ./scripts/Build.ps1
+      - name: Preserve compiled inputs for validation
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: php74-build-inputs
+          path: |
+            dist/*
+            reports/*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Preserve build diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: php74-build-failure-diagnostics
+          path: reports/*
+          if-no-files-found: warn
+          retention-days: 14
+  validate:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Use LF for validation checkouts
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - name: Checkout validation instructions
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Checkout official Windows builder
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: php/php-windows-builder
+          ref: 5f63433eb2bda2ca8d0d970fe487be84f7ab195c
+          path: work/builder
+          persist-credentials: false
+      - name: Download compiled inputs from this run
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: php74-build-inputs
+          path: .
       - name: Test runtime and security backport behavior
         run: ./scripts/Test.ps1
       - name: Attest tested runtime ZIP
