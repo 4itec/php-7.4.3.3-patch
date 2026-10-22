@@ -1,8 +1,8 @@
 # PHP 7.4.33 con el parche PHP2Shell para Windows
 
-**Estado: primera compilación completada; corregida la comprobación del compilador para repetir la validación. Aún no hay un paquete validado disponible.**
+**Estado: segunda compilación en curso; las pruebas se ejecutarán en un trabajo separado. Aún no hay un paquete validado disponible.**
 
-[Ejecución de GitHub Actions](https://github.com/4itec/php-7.4.3.3-patch/actions/runs/39813282800).
+[Ejecución de GitHub Actions](https://github.com/4itec/php-7.4.3.3-patch/actions/runs/39819100233).
 
 Compilación propia de **PHP 7.4.33-pl1, x64, Thread Safe, VC15**.
 Parte de la etiqueta oficial PHP 7.4.33 y aplica exclusivamente el parche oficial
@@ -101,3 +101,55 @@ sus procesos y probar los flujos de la aplicación antes del cambio definitivo.
 Mantener la protección WAF de Cloudflare y comprobar que no hay acceso público
 directo al origen que la evite. Ajustar session.upload_progress.enabled=0 y los
 límites de solicitudes a la aplicación. Estas medidas no sustituyen la migración.
+
+### Comprobaciones para la instalación
+
+Descargar el artefacto final de una ejecución correcta y extraerlo en una carpeta
+de revisión. Desde esa carpeta, comprobar el ZIP de PHP en PowerShell:
+
+~~~powershell
+Get-FileHash .\dist\php-7.4.33-pl1-Win32-vc15-x64.zip -Algorithm SHA256
+Get-Content .\dist\SHA256SUMS
+~~~
+
+El hash debe coincidir con el de ese nombre de archivo y con runtime_sha256 en
+dist/manifest.json. La primera orden usa el
+[comando oficial de PowerShell](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/get-filehash?view=powershell-5.1).
+La procedencia se revisa además con la ejecución y la certificación indicadas
+arriba; un checksum por sí solo no acredita quién ha construido el archivo.
+
+En una copia del servidor, detener Wampserver y preparar una carpeta PHP nueva.
+Extraer allí el ZIP completo. Tomar de la instalación PHP 7.4 anterior únicamente
+sus plantillas de configuración (php.ini, phpForApache.ini y wampserver.conf),
+revisando las rutas para la carpeta nueva. Revisar extension_dir, temporales,
+sesiones, certificados y extensiones externas. Los ejecutables y las DLL del
+núcleo y de las extensiones incluidas deben proceder del ZIP nuevo.
+
+El registro de una versión con sufijo -pl1 en el menú de Wampserver 3.2.6 no se ha
+ensayado en Actions. Comprobar la detección y el cambio de versión en la copia
+antes de modificar el servidor público. No sobrescribir una carpeta PHP existente
+ni asumir que el nombre mostrado en el menú identifica por sí solo el binario.
+
+Una vez preparada la carpeta y su configuración, sustituir CARPETA_NUEVA por su
+nombre real y ejecutar estas comprobaciones:
+
+~~~powershell
+$phpDir = 'C:\wamp64\bin\php\CARPETA_NUEVA'
+& "$phpDir\php.exe" -n -v
+& "$phpDir\php.exe" -c "$phpDir\phpForApache.ini" -m
+& "$phpDir\php.exe" -c "$phpDir\phpForApache.ini" -r 'echo PHP_VERSION, PHP_EOL, PHP_INT_SIZE * 8, PHP_EOL, PHP_ZTS, PHP_EOL, php_ini_loaded_file(), PHP_EOL;'
+~~~
+
+Los resultados esperados son PHP 7.4.33-pl1, 64 bits y ZTS=1, sin avisos de carga
+de DLL y con el INI previsto. Adaptar C:\wamp64 si la instalación usa otra ruta.
+
+Al seleccionar la versión en Wampserver, comprobar que Apache apunta a
+php7apache2_4.dll del paquete y que el PHP utilizado por las peticiones web es
+también 7.4.33-pl1. La consola y Apache pueden cargar configuraciones diferentes.
+Reiniciar todos los procesos de Apache y probar los flujos de la aplicación.
+La [documentación oficial de PHP para Apache en Windows](https://www.php.net/manual/en/install.windows.apache2.php)
+describe el requisito TS, php7_module, php7apache2_4.dll y PHPIniDir.
+
+Guardar la versión y configuración anteriores para volver a ellas si la prueba
+de compatibilidad falla. Ese retorno restablece la situación anterior al parche;
+no resuelve la vulnerabilidad.
