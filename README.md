@@ -1,6 +1,8 @@
 # PHP 7.4.33 con el parche PHP2Shell para Windows
 
-**Estado: preparación. Aún no hay una compilación validada ni binarios disponibles.**
+**Estado: compilación y pruebas en curso. Aún no hay binarios validados disponibles.**
+
+[Ejecución de GitHub Actions](https://github.com/4itec/php-7.4.3.3-patch/actions/runs/39813282800).
 
 Compilación propia de **PHP 7.4.33-pl1, x64, Thread Safe, VC15**.
 Parte de la etiqueta oficial PHP 7.4.33 y aplica exclusivamente el parche oficial
@@ -24,6 +26,12 @@ soporte y el propio cambio de PHP se describe como una mitigación mínima para
 una rama EOL. Este trabajo no corrige otras vulnerabilidades ni actualiza todas
 las bibliotecas históricas de PHP 7.4. El uso de fuentes oficiales no garantiza
 ausencia de riesgos. Es una medida transitoria durante la migración.
+
+El parche termina inmediatamente el proceso de PHP cuando se agota la memoria.
+Con mod_php, PHP se ejecuta dentro de Apache: ese cierre puede interrumpir otras
+solicitudes del mismo proceso y afectar temporalmente a la disponibilidad. También
+desactiva el seguimiento de progreso de subidas mediante sesiones; las subidas
+normales se prueban por separado. Estos cambios deben revisarse con la aplicación.
 
 El proceso usa herramientas y dependencias de sus proveedores originales.
 Los scripts de automatización de este repositorio son propios y revisables.
