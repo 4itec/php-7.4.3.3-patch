@@ -1,0 +1,35 @@
+name: Remove obsolete first-run diagnostics
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cleanup-obsolete-diagnostics.yml']
+permissions:
+  actions: write
+jobs:
+  cleanup:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Remove the fixed obsolete diagnostic artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/actions/artifacts/12442004392"
+          $headers = @{Accept='application/vnd.github+json'; Authorization="Bearer $env:GH_TOKEN"}
+          try {
+            $artifact = Invoke-RestMethod -Uri $uri -Headers $headers
+          } catch {
+            if ([int]$_.Exception.Response.StatusCode -eq 404) {
+              Write-Host 'Obsolete artifact already absent.'
+              exit 0
+            }
+            throw
+          }
+          if ($artifact.name -cne 'php74-failure-diagnostics' -or $artifact.workflow_run.id -ne 39813282800) {
+            throw 'Artifact identity does not match the fixed cleanup target.'
+          }
+          Invoke-RestMethod -Method Delete -Uri $uri -Headers $headers | Out-Null
+          Write-Host 'Removed obsolete diagnostics from the first run. Masked workflow logs remain available.'
