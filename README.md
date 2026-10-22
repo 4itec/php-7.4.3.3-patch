@@ -1,8 +1,19 @@
 # PHP 7.4.33 con el parche PHP2Shell para Windows
 
-**Estado: segunda compilación en curso; las pruebas se ejecutarán en un trabajo separado. Aún no hay un paquete validado disponible.**
+**Estado: compilación y pruebas superadas en GitHub Actions (Windows Server 2022). La comprobación en la instalación concreta de Windows Server 2019 y Wampserver 3.2.6 sigue pendiente.**
 
 [Ejecución de GitHub Actions](https://github.com/4itec/php-7.4.3.3-patch/actions/runs/39819100233).
+
+[Descargar paquete validado: php-7.4.33-pl1-x64-ts](https://github.com/4itec/php-7.4.3.3-patch/actions/runs/39819100233/artifacts/12444094988)
+(disponible hasta el 21/11/2026).
+
+[Certificación de procedencia](https://github.com/4itec/php-7.4.3.3-patch/attestations/58746363).
+El ZIP de PHP está dentro de dist/ en la descarga. Su SHA-256 es:
+
+~~~text
+ae5cf246d1aff598d291c654deb80bb23526bd049b51c29ef20b70f70aceaf2e
+~~~
+
 
 Compilación propia de **PHP 7.4.33-pl1, x64, Thread Safe, VC15**.
 Parte de la etiqueta oficial PHP 7.4.33 y aplica exclusivamente el parche oficial
